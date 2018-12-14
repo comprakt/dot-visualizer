@@ -1,0 +1,117 @@
+body {
+	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+	height: 100vh;
+	position: relative;
+	margin: 0px;
+	padding: 0px;
+	border: 0px;
+}
+
+html, .root, .gui {
+	height: 100vh;
+	position: relative;
+	margin: 0px;
+	padding: 0px;
+	border: 0px;
+}
+
+.gui {
+	display: flex;
+	flex-direction: column;
+}
+
+.header {
+}
+
+.content {
+	flex: 1;
+	height: 100%;
+}
+
+.toolbar {
+  position: absolute;
+  top: 5px;
+  left: 0;
+  right: 0;
+  display: flex;
+  z-index: 999;
+}
+
+.sidebar {
+  position: absolute;
+  right: 0;
+  width: 22em;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  background: rgba(0,0,0,.2);
+  padding: 2em;
+  padding-right: 4em;
+  color: white;
+  font-family: monospace;
+
+  th {
+    vertical-align: top;
+    text-align: left;
+    padding-right: .2em;
+    color: #75C6FA;
+  }
+}
+
+.graph-selection ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li { display: inline-block; color: #75C6FA; }
+  li:after {
+    content: "|";
+    color: rgba(255,255,255,.4);
+    display: inline-block;
+    padding: 0 0.4em;
+    font-weight: bold;
+  }
+  li:last-child:after { content: none; }
+  a { text-decoration: none; color: inherit; }
+
+  li[data-is-current="true"] a {
+    color: white;
+    font-weight: bold;
+    text-decoration: underline;
+  }
+}
+
+.btn-row {
+  margin: 0 auto;
+  background-color: rgba(19, 20, 22, 0.9);
+  border-radius: 2px;
+  display: flex;
+  flex-direction: row;
+  padding: 0;
+}
+
+.btn {
+  &:hover {
+    color: rgb(28, 166, 252);
+    background-color: rgba(0,0,0,.8)
+  }
+  border-radius: 2px;
+  display: block;
+  min-height: 24px;
+  color: rgb(255, 255, 255);
+  transition: color 200ms ease 0s;
+  background: rgba(0, 0, 0, 0) none repeat scroll 0% 0%;
+  padding: 8px 12px;
+  border: 0px none;
+  outline: currentcolor none 0px;
+  cursor: pointer;
+}
+
+/* Adapt the default dot file design to the debugger design */
+svg svg polygon[fill="#ffffff"] {
+    fill: transparent;
+}
+
+svg svg .node polygon[fill="none"] {
+    fill: #CCC;
+}

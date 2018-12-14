@@ -1,8 +1,8 @@
 import { observable, computed } from "mobx";
 import Viz from 'viz.js';
-import { Module, render } from 'viz.js/full.render.js';
+import { Module, render } from 'viz.js/full-render.js';
 
-let viz = new Viz({ Module, render });
+let viz: any = new Viz({ Module, render });
 
 const API = {
     breakpoint_continue: "/breakpoint/continue",
@@ -40,6 +40,20 @@ export class Model {
         }, 200);
     }
 
+    continue_execution() {
+        fetch(API.breakpoint_continue);
+    }
+
+    set_active(new_active: string) {
+        if (this.compilation_state && !this.compilation_state.dot_files[new_active]) {
+            console.error("trying to view unknown graph", new_active);
+            return;
+        }
+
+        console.info("active is now", new_active);
+        this.active = new_active;
+    }
+
     async loadData(): Promise<void> {
         const data = await fetch(API.breakpoint_get_most_recent);
 
@@ -56,11 +70,16 @@ export class Model {
         this.compilation_state_unparsed = text;
         this.compilation_state = compilation_state;
 
-        this.svg = await viz.renderString(compilation_state.dot_files[MAIN_FUNCTION].dot_file);
+        if (this.active == null || !this.compilation_state.dot_files[this.active]) {
+            this.active = MAIN_FUNCTION;
+        }
+
+        this.svg = await viz.renderString(compilation_state.dot_files[this.active].dot_file);
     }
 
     compilation_state_unparsed: string | null;
     compilation_state: CompilationState | null;
 
     @observable svg: string | null;
+    @observable active: string | null;
 }
