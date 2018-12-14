@@ -8,7 +8,8 @@
 		"jsx": "react",
 		"outDir": "dist",
 		"experimentalDecorators": true,
-		"isolatedModules": true
+		"isolatedModules": true,
+		"lib": [ "es2015", "dom" ]
 	},
 	"include": [
 		"src/**/*"

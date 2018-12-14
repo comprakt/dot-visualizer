@@ -4,46 +4,63 @@ import { Module, render } from 'viz.js/full.render.js';
 
 let viz = new Viz({ Module, render });
 
-function getParameterByName(name, url) {
-    if (!url) url = window.location.href;
-    name = name.replace(/[\[\]]/g, '\\$&');
-    var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
-        results = regex.exec(url);
-    if (!results) return null;
-    if (!results[2]) return '';
-    return decodeURIComponent(results[2].replace(/\+/g, ' '));
+const API = {
+    breakpoint_continue: "/breakpoint/continue",
+    breakpoint_get_most_recent: "/breakpoint",
+}
+
+const MAIN_FUNCTION = "mj_main";
+
+interface Breakpoint {
+    label: string;
+    file: string;
+    line: number;
+    column: number;
+}
+
+interface GraphMap {
+    [key: string]: Graph;
+}
+
+interface Graph {
+    class_name: string;
+    method_name: string;
+    dot_file: string;
+}
+
+interface CompilationState {
+    breakpoint: Breakpoint;
+    dot_files: GraphMap;
 }
 
 export class Model {
-	constructor() {
-		this.time = new Date();
-		setInterval(() => {
-			this.loadData();
-		}, 200);
-		this.url = getParameterByName("url", window.location);
-	}
-private i = 0;
-	async loadData(): Promise<void> {
-		const data = await fetch(this.url);
-		const text = await data.text();
-		if (text == this.lastText) return;
-		if (!text) return;
-		this.lastText = text;
+    constructor() {
+        setInterval(() => {
+            this.loadData();
+        }, 200);
+    }
 
-		console.log("updated", this.i++);
-		const svg = await viz.renderString(text);
-		if (text === this.lastText) {
-			this.svg = svg;
-		}
-	}
+    async loadData(): Promise<void> {
+        const data = await fetch(API.breakpoint_get_most_recent);
 
-	@observable url: string = "http://192.168.56.1:8081/CF.M.foo.dot";
-	lastText: string|null;
+        if (!data.ok) { return; }
 
-	@observable svg: string|null;
+        const text = await data.text();
 
-	@observable time: Date;
-	@computed get seconds(): number {
-		return this.time.getSeconds();
-	}
+        if (text == this.compilation_state_unparsed) {
+            return;
+        }
+
+        const compilation_state: CompilationState = JSON.parse(text);
+
+        this.compilation_state_unparsed = text;
+        this.compilation_state = compilation_state;
+
+        this.svg = await viz.renderString(compilation_state.dot_files[MAIN_FUNCTION].dot_file);
+    }
+
+    compilation_state_unparsed: string | null;
+    compilation_state: CompilationState | null;
+
+    @observable svg: string | null;
 }
