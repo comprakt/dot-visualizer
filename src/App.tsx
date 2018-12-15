@@ -26,7 +26,7 @@ function Sidebar(props) {
 
 function GraphSelector(props) {
     const model = props.model;
-    const method = model.active && model.compilation_state ? model.compilation_state.dot_files[model.active] : null;
+    const method = model.active_method && model.compilation_state ? model.compilation_state.dot_files[model.active_method] : null;
 
 
     if (!method) {
@@ -40,7 +40,7 @@ function GraphSelector(props) {
         let graph = model.compilation_state.dot_files[internal_name];
         let is_active = model.active == internal_name;
         return <li data-is-current={is_active}>
-            <a href="#" onClick={(e) => { e.preventDefault(); model.set_active(internal_name) }}>
+            <a href="#" onClick={(e) => { e.preventDefault(); model.set_active_method(internal_name) }}>
                 {graph.class_name}.{graph.method_name}</a>
         </li>;
     });

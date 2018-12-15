@@ -44,14 +44,18 @@ export class Model {
         fetch(API.breakpoint_continue);
     }
 
-    set_active(new_active: string) {
+    async set_active_method(new_active: string): Promise<void> {
         if (this.compilation_state && !this.compilation_state.dot_files[new_active]) {
             console.error("trying to view unknown graph", new_active);
             return;
         }
 
-        console.info("active is now", new_active);
-        this.active = new_active;
+        console.info("active method is now", new_active);
+        this.active_method = new_active;
+
+        if (this.compilation_state) {
+            this.svg = await viz.renderString(this.compilation_state.dot_files[this.active_method].dot_file);
+        }
     }
 
     async loadData(): Promise<void> {
@@ -70,16 +74,17 @@ export class Model {
         this.compilation_state_unparsed = text;
         this.compilation_state = compilation_state;
 
-        if (this.active == null || !this.compilation_state.dot_files[this.active]) {
-            this.active = MAIN_FUNCTION;
+        if (this.active_method == null || !this.compilation_state.dot_files[this.active_method]) {
+            this.active_method = MAIN_FUNCTION;
         }
 
-        this.svg = await viz.renderString(compilation_state.dot_files[this.active].dot_file);
+        this.svg = await viz.renderString(this.compilation_state.dot_files[this.active_method].dot_file);
     }
 
-    compilation_state_unparsed: string | null;
-    compilation_state: CompilationState | null;
+    @observable compilation_state_unparsed: string | null;
+    @observable compilation_state: CompilationState | null;
 
+    @observable active_method: string | null;
     @observable svg: string | null;
-    @observable active: string | null;
+    @observable history: string | null;
 }
