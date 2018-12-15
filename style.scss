@@ -81,6 +81,25 @@ html, .root, .gui {
   }
 }
 
+.breakpoint-history ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li { color: #75C6FA; }
+  a { text-decoration: none; color: inherit; }
+
+  li[data-is-active="true"] a {
+    color: white;
+    font-weight: bold;
+    text-decoration: underline;
+  }
+
+  li[data-is-repeated="false"] a {
+    font-weight: bold;
+  }
+}
+
 .btn-row {
   margin: 0 auto;
   background-color: rgba(19, 20, 22, 0.9);

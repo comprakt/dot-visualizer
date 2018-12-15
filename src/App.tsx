@@ -2,7 +2,7 @@ import { observer } from "mobx-react";
 import * as classNames from "classnames";
 import * as React from "react";
 import * as ReactDOM from "react-dom";
-import { Model } from "./Model";
+import { Breakpoint, Model } from "./Model";
 import { ReactSVGPanZoom, TOOL_PAN } from 'react-svg-pan-zoom';
 import { computed, observable } from "mobx";
 import Measure from 'react-measure';
@@ -21,6 +21,7 @@ function Sidebar(props) {
     return <div className="sidebar">
         <BreakpointInfo breakpoint={props.breakpoint} />
         <GraphSelector model={props.model} />
+        <BreakpointHistory breakpoints={props.model.history} />
     </div>;
 }
 
@@ -70,6 +71,33 @@ function BreakpointInfo(props) {
             </table>
         </div>;
     }
+}
+
+function BreakpointHistory(props) {
+    if (!props.breakpoints) {
+        return <div className="breakpoint-history" />;
+    }
+
+    let last_unrepeated: Breakpoint | null = null;
+
+    const breakpoints = props.breakpoints.map(function(b: Breakpoint, index) {
+        let is_repeated = true;
+        if (!last_unrepeated || b.line != last_unrepeated.line || b.column != last_unrepeated.column || b.file != last_unrepeated.file) {
+            is_repeated = false;
+            last_unrepeated = b;
+        }
+        //let is_active = model.active == internal_name;
+        let is_active = false;
+        return <li data-is-current={is_active} data-is-repeated={is_repeated}>
+            <a href="#" onClick={(e) => { e.preventDefault(); props.model.set_active_snapshot(index) }}>
+                {b.label} <span>{b.file}@{b.line}</span></a>
+        </li>;
+    });
+
+    return <div className="breakpoint-history">
+        <h1>History</h1>
+        <ul>{breakpoints}</ul>
+    </div>;
 }
 
 @observer

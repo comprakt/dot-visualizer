@@ -4,31 +4,35 @@ import { Module, render } from 'viz.js/full-render.js';
 
 let viz: any = new Viz({ Module, render });
 
+// The API differentiates between `breakpoints`, which only contain meta
+// information, and `snapshots`, which contain a dump of the whole compiler
+// state in addition to meta data.
 const API = {
     breakpoint_continue: "/breakpoint/continue",
-    breakpoint_get_most_recent: "/breakpoint",
+    snapshot_latest: "/snapshot/latest",
+    breakpoint_listing: "/breakpoint/all",
 }
 
 const MAIN_FUNCTION = "mj_main";
 
-interface Breakpoint {
+export interface Breakpoint {
     label: string;
     file: string;
     line: number;
     column: number;
 }
 
-interface GraphMap {
+export interface GraphMap {
     [key: string]: Graph;
 }
 
-interface Graph {
+export interface Graph {
     class_name: string;
     method_name: string;
     dot_file: string;
 }
 
-interface CompilationState {
+export interface CompilationState {
     breakpoint: Breakpoint;
     dot_files: GraphMap;
 }
@@ -36,7 +40,8 @@ interface CompilationState {
 export class Model {
     constructor() {
         setInterval(() => {
-            this.loadData();
+            this.loadSnapshot();
+            this.loadBreakpointHistory();
         }, 200);
     }
 
@@ -58,8 +63,8 @@ export class Model {
         }
     }
 
-    async loadData(): Promise<void> {
-        const data = await fetch(API.breakpoint_get_most_recent);
+    async loadSnapshot(): Promise<void> {
+        const data = await fetch(API.snapshot_latest);
 
         if (!data.ok) { return; }
 
@@ -81,10 +86,16 @@ export class Model {
         this.svg = await viz.renderString(this.compilation_state.dot_files[this.active_method].dot_file);
     }
 
+    async loadBreakpointHistory(): Promise<void> {
+        const data = await fetch(API.breakpoint_listing);
+        if (!data.ok) { return; }
+        this.history = JSON.parse(await data.text());
+    }
+
     @observable compilation_state_unparsed: string | null;
     @observable compilation_state: CompilationState | null;
+    @observable history: Breakpoint[] | null;
 
     @observable active_method: string | null;
     @observable svg: string | null;
-    @observable history: string | null;
 }
