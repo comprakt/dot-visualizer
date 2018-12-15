@@ -156,3 +156,7 @@ svg svg .node polygon[fill="none"] {
     background: rgba(255,0,0,0.3);
   }
 }
+
+[role="toolbar"] {
+  z-index: 999;
+}
