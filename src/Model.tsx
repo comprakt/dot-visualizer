@@ -40,6 +40,7 @@ export interface CompilationState {
 
 export class Model {
     constructor() {
+        this.compiler_online = null;
         setInterval(() => {
             this.loadSnapshot();
             this.loadBreakpointHistory();
@@ -71,13 +72,10 @@ export class Model {
     }
 
     async loadSnapshot(): Promise<void> {
-        const data = await fetch(this.active_snapshot == null ? API.snapshot_latest : API.snapshot(this.active_snapshot));
+        const endpoint = this.active_snapshot == null ? API.snapshot_latest : API.snapshot(this.active_snapshot);
+        const text = await this.fetch_api(endpoint);
 
-        if (!data.ok) { return; }
-
-        const text = await data.text();
-
-        if (text == this.compilation_state_unparsed) {
+        if (text == this.compilation_state_unparsed || text == null) {
             return;
         }
 
@@ -93,10 +91,39 @@ export class Model {
         this.svg = await viz.renderString(this.compilation_state.dot_files[this.active_method].dot_file);
     }
 
+    compiler_connectivity_error() {
+        this.compiler_online = false;
+    }
+
+    compiler_connectivity(data) {
+        if (!data.ok) {
+            this.compiler_connectivity_error();
+            return false;
+        }
+        this.compiler_online = true;
+        return true;
+    }
+
+    async fetch_api(endpoint): Promise<string | null> {
+        try {
+            const data = await fetch(endpoint);
+            if (!this.compiler_connectivity(data)) { return null; }
+            return await data.text();
+        } catch (e) {
+            this.compiler_connectivity_error();
+        }
+
+        return null;
+    }
+
     async loadBreakpointHistory(): Promise<void> {
-        const data = await fetch(API.breakpoint_listing);
-        if (!data.ok) { return; }
-        this.history = JSON.parse(await data.text());
+        let response = await this.fetch_api(API.breakpoint_listing);
+
+        if (response == null) {
+            return;
+        }
+
+        this.history = JSON.parse(response);
     }
 
     @observable compilation_state_unparsed: string | null;
@@ -105,5 +132,6 @@ export class Model {
 
     @observable active_method: string | null;
     @observable active_snapshot: number | null;
+    @observable compiler_online: boolean | null;
     @observable svg: string | null;
 }

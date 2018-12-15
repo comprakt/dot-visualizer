@@ -81,6 +81,10 @@ html, .root, .gui {
   }
 }
 
+.breakpoint-history[data-is-offline="true"] .label {
+  color: #949496;
+}
+
 .breakpoint-history ul {
   list-style: none;
   margin: 0;
@@ -145,4 +149,10 @@ svg svg polygon[fill="#ffffff"] {
 
 svg svg .node polygon[fill="none"] {
     fill: #CCC;
+}
+
+.compiler {
+  &--offline {
+    background: rgba(255,0,0,0.3);
+  }
 }

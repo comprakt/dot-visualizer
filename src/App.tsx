@@ -7,25 +7,37 @@ import { ReactSVGPanZoom, TOOL_PAN } from 'react-svg-pan-zoom';
 import { computed, observable } from "mobx";
 import Measure from 'react-measure';
 
-function Toolbar(props) {
-    return <div className="toolbar">
+const Toolbar = observer(({ model }) => {
+    if (model.compiler_online == null) {
+        return <div className="toolbar">
+            <div className="btn-row compiler--connecting">
+                <button className="btn">Connecting to Compiler...</button>
+            </div>
+        </div>;
+    } else if (model.compiler_online == false) {
+        return <div className="toolbar">
+            <div className="btn-row compiler--offline">
+                <button className="btn">Compiler Finished Execution</button>
+            </div>
+        </div>;
+    }
+
+    return <div className="toolbar compiler--continue">
         <div className="btn-row">
-            <button className="btn">Startknoten</button>
-            <button className="btn">Endknoten</button>
-            <button className="btn" onClick={(e) => { props.model.continue_execution(); }}>Continue</button>
+            <button className="btn" onClick={(e) => { model.continue_execution(); }}>Continue</button>
         </div>
     </div>;
-}
+});
 
-function Sidebar(props) {
+const Sidebar = observer((props) => {
     return <div className="sidebar">
         <BreakpointInfo breakpoint={props.breakpoint} />
         <GraphSelector model={props.model} />
         <BreakpointHistory model={props.model} />
     </div>;
-}
+});
 
-function GraphSelector(props) {
+const GraphSelector = observer((props) => {
     const model = props.model;
     const method = model.active_method && model.compilation_state ? model.compilation_state.dot_files[model.active_method] : null;
 
@@ -50,9 +62,9 @@ function GraphSelector(props) {
         <h1>Methods</h1>
         <ul>{links}</ul>
     </div>;
-}
+});
 
-function BreakpointInfo(props) {
+const BreakpointInfo = observer((props) => {
     if (!props.breakpoint) {
         return <div className="breakpoint" />;
     } else {
@@ -71,9 +83,9 @@ function BreakpointInfo(props) {
             </table>
         </div>;
     }
-}
+});
 
-function BreakpointHistory(props) {
+const BreakpointHistory = observer((props) => {
     if (!props.model.history) {
         return <div className="breakpoint-history" />;
     }
@@ -88,18 +100,23 @@ function BreakpointHistory(props) {
         }
         let is_active = props.model.active_snapshot == index || (props.model.active_snapshot == null && index + 1 == props.model.history.length);
         return <li data-is-current={is_active} data-is-repeated={is_repeated}>
-            <a href="#" onClick={(e) => { e.preventDefault(); props.model.set_active_snapshot(index); }}>
+            <a href="#" onClick={(e) => {
+                e.preventDefault();
+                if (props.model.compiler_online) {
+                    props.model.set_active_snapshot(index);
+                }
+            }}>
                 <span className="label">{b.label}</span> <span className="location">{b.file}@{b.line}</span></a>
         </li>;
     });
 
     breakpoints.reverse();  // reverse, newest breakpoint on top/index zero
 
-    return <div className="breakpoint-history">
+    return <div className="breakpoint-history" data-is-offline={!props.model.compiler_online}>
         <h1>History</h1>
         <ul>{breakpoints}</ul>
     </div>;
-}
+});
 
 @observer
 export class GUI extends React.Component<{ model: Model }, {}> {
