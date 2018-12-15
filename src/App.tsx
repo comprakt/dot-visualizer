@@ -21,7 +21,7 @@ function Sidebar(props) {
     return <div className="sidebar">
         <BreakpointInfo breakpoint={props.breakpoint} />
         <GraphSelector model={props.model} />
-        <BreakpointHistory breakpoints={props.model.history} />
+        <BreakpointHistory model={props.model} />
     </div>;
 }
 
@@ -39,7 +39,7 @@ function GraphSelector(props) {
 
     const links = graphs.map(function(internal_name, index) {
         let graph = model.compilation_state.dot_files[internal_name];
-        let is_active = model.active == internal_name;
+        let is_active = model.active_method == internal_name;
         return <li data-is-current={is_active}>
             <a href="#" onClick={(e) => { e.preventDefault(); model.set_active_method(internal_name) }}>
                 {graph.class_name}.{graph.method_name}</a>
@@ -74,25 +74,26 @@ function BreakpointInfo(props) {
 }
 
 function BreakpointHistory(props) {
-    if (!props.breakpoints) {
+    if (!props.model.history) {
         return <div className="breakpoint-history" />;
     }
 
     let last_unrepeated: Breakpoint | null = null;
 
-    const breakpoints = props.breakpoints.map(function(b: Breakpoint, index) {
+    const breakpoints = props.model.history.map(function(b: Breakpoint, index) {
         let is_repeated = true;
         if (!last_unrepeated || b.line != last_unrepeated.line || b.column != last_unrepeated.column || b.file != last_unrepeated.file) {
             is_repeated = false;
             last_unrepeated = b;
         }
-        //let is_active = model.active == internal_name;
-        let is_active = false;
+        let is_active = props.model.active_snapshot == index || (props.model.active_snapshot == null && index + 1 == props.model.history.length);
         return <li data-is-current={is_active} data-is-repeated={is_repeated}>
-            <a href="#" onClick={(e) => { e.preventDefault(); props.model.set_active_snapshot(index) }}>
-                {b.label} <span>{b.file}@{b.line}</span></a>
+            <a href="#" onClick={(e) => { e.preventDefault(); props.model.set_active_snapshot(index); }}>
+                <span className="label">{b.label}</span> <span className="location">{b.file}@{b.line}</span></a>
         </li>;
     });
+
+    breakpoints.reverse();  // reverse, newest breakpoint on top/index zero
 
     return <div className="breakpoint-history">
         <h1>History</h1>

@@ -87,9 +87,21 @@ html, .root, .gui {
   padding: 0;
 
   li { color: #75C6FA; }
-  a { text-decoration: none; color: inherit; }
+  li::nth-child(2n+1) { background: rgba(0,0,0,.2); }
 
-  li[data-is-active="true"] a {
+  a {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+  }
+
+  .location {
+    font-weight: normal;
+    color: #949496;
+    text-decoration: none;
+  }
+
+  li[data-is-current="true"] .label {
     color: white;
     font-weight: bold;
     text-decoration: underline;

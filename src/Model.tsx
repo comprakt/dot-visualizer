@@ -11,6 +11,7 @@ const API = {
     breakpoint_continue: "/breakpoint/continue",
     snapshot_latest: "/snapshot/latest",
     breakpoint_listing: "/breakpoint/all",
+    snapshot: index => `/snapshot/${index}`,
 }
 
 const MAIN_FUNCTION = "mj_main";
@@ -63,8 +64,14 @@ export class Model {
         }
     }
 
+    async set_active_snapshot(index: number | null): Promise<void> {
+        console.info("active snapshot is now", index);
+        this.active_snapshot = index;
+        this.loadSnapshot();
+    }
+
     async loadSnapshot(): Promise<void> {
-        const data = await fetch(API.snapshot_latest);
+        const data = await fetch(this.active_snapshot == null ? API.snapshot_latest : API.snapshot(this.active_snapshot));
 
         if (!data.ok) { return; }
 
@@ -97,5 +104,6 @@ export class Model {
     @observable history: Breakpoint[] | null;
 
     @observable active_method: string | null;
+    @observable active_snapshot: number | null;
     @observable svg: string | null;
 }
