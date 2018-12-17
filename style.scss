@@ -49,6 +49,7 @@ html, .root, .gui {
   padding-right: 4em;
   color: white;
   font-family: monospace;
+  overflow-y: scroll;
 
   th {
     vertical-align: top;
@@ -178,4 +179,11 @@ svg svg .node polygon[fill="none"] {
 
 [role="toolbar"] {
   z-index: 999;
+}
+
+[data-is-repeated="false"] {
+    border-bottom: 2px solid #949496;
+    padding: 2px 0;
+    margin-bottom: 1em;
+    background: #5c5c5c;
 }

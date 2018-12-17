@@ -65,6 +65,36 @@ export class Model {
         }
     }
 
+    async ensure_active_method_exists(): Promise<void> {
+        let method = await this.find_method_to_view();
+        if (method == null || method == this.active_method) {
+            return;
+        }
+        return this.set_active_method(method)
+    }
+
+    async find_method_to_view(): Promise<string | null> {
+        if (!this.compilation_state) {
+            return null;
+        }
+
+        if (this.active_method && this.compilation_state.dot_files[this.active_method]) {
+            return this.active_method;
+        }
+
+        if (this.compilation_state.dot_files[MAIN_FUNCTION]) {
+            return MAIN_FUNCTION;
+        }
+
+        let keys = Object.keys(this.compilation_state.dot_files);
+
+        if (keys.length) {
+            return keys[0];
+        }
+
+        return null;
+    }
+
     async set_active_snapshot(index: number | null): Promise<void> {
         console.info("active snapshot is now", index);
         this.active_snapshot = index;
@@ -100,11 +130,10 @@ export class Model {
         this.compilation_state_unparsed = text;
         this.compilation_state = compilation_state;
 
-        if (this.active_method == null || !this.compilation_state.dot_files[this.active_method]) {
-            this.active_method = MAIN_FUNCTION;
+        await this.ensure_active_method_exists();
+        if (this.active_method) {
+            this.svg = await viz.renderString(this.compilation_state.dot_files[this.active_method].dot_file);
         }
-
-        this.svg = await viz.renderString(this.compilation_state.dot_files[this.active_method].dot_file);
     }
 
     compiler_connectivity_error() {
