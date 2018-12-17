@@ -140,6 +140,25 @@ html, .root, .gui {
   border: 0px none;
   outline: currentcolor none 0px;
   cursor: pointer;
+
+  &--continue {
+    background-color: #75C6FA;
+
+    &:hover {
+      background-color: #5082A2;
+      color: white;
+    }
+
+    &:after {
+      content: "▶";
+    }
+  }
+  &--snapshot-prev:before {
+      content: "⏮ ";
+  }
+  &--snapshot-next:after {
+      content: " ⏭ ";
+  }
 }
 
 /* Adapt the default dot file design to the debugger design */

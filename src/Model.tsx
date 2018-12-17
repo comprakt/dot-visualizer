@@ -1,6 +1,6 @@
 import { observable, computed } from "mobx";
 import Viz from 'viz.js';
-import { Module, render } from 'viz.js/full-render.js';
+import { Module, render } from 'viz.js/full.render.js';
 
 let viz: any = new Viz({ Module, render });
 
@@ -69,6 +69,22 @@ export class Model {
         console.info("active snapshot is now", index);
         this.active_snapshot = index;
         this.loadSnapshot();
+    }
+
+    async previous_snapshot(): Promise<void> {
+        if (this.history != null) {
+            let idx: number = (this.active_snapshot != null) ? this.active_snapshot - 1 : this.history.length - 2;
+            this.active_snapshot = Math.max(0, idx);
+            this.loadSnapshot();
+        }
+    }
+
+    async next_snapshot(): Promise<void> {
+        if (this.history != null) {
+            let idx: number = (this.active_snapshot != null) ? this.active_snapshot + 1 : this.history.length - 1;
+            this.active_snapshot = Math.min(this.history.length - 1, idx);
+            this.loadSnapshot();
+        }
     }
 
     async loadSnapshot(): Promise<void> {

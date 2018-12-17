@@ -3,28 +3,34 @@ import * as classNames from "classnames";
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { Breakpoint, Model } from "./Model";
-import { ReactSVGPanZoom, TOOL_PAN } from 'react-svg-pan-zoom';
+import { ReactSVGPanZoom } from 'react-svg-pan-zoom';
 import { computed, observable } from "mobx";
 import Measure from 'react-measure';
 
 const Toolbar = observer(({ model }) => {
     if (model.compiler_online == null) {
-        return <div className="toolbar">
-            <div className="btn-row compiler--connecting">
-                <button className="btn">Connecting to Compiler...</button>
+        return (
+            <div className="toolbar">
+                <div className="btn-row compiler--connecting">
+                    <button className="btn">Connecting to Compiler...</button>
+                </div>
             </div>
-        </div>;
+        );
     } else if (model.compiler_online == false) {
-        return <div className="toolbar">
-            <div className="btn-row compiler--offline">
-                <button className="btn">Compiler Finished Execution</button>
+        return (
+            <div className="toolbar">
+                <div className="btn-row compiler--offline">
+                    <button className="btn">Compiler Finished Execution</button>
+                </div>
             </div>
-        </div>;
+        );
     }
 
     return <div className="toolbar compiler--continue">
         <div className="btn-row">
-            <button className="btn" onClick={(e) => { model.continue_execution(); }}>Continue</button>
+            <button className="btn btn--snapshot-prev" onClick={(e) => { model.previous_snapshot(); }}>Previous</button>
+            <button className="btn btn--snapshot-next" onClick={(e) => { model.next_snapshot(); }}>Next</button>
+            <button className="btn btn--continue" onClick={(e) => { model.continue_execution(); }}>Continue</button>
         </div>
     </div>;
 });
@@ -140,7 +146,6 @@ export class GUI extends React.Component<{ model: Model }, {}> {
                         return (
                             <div ref={measureRef} className="content">
                                 <ReactSVGPanZoom
-                                    tool={TOOL_PAN}
                                     width={contentRect.bounds!.width} height={contentRect.bounds!.height}>
                                     <svg>
                                         <g dangerouslySetInnerHTML={{ __html: svgContent }} />
