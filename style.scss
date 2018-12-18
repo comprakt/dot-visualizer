@@ -115,6 +115,13 @@ html, .root, .gui {
   li[data-is-repeated="false"] a {
     font-weight: bold;
   }
+
+  li[data-is-repeated="false"] {
+      border-bottom: 2px solid #949496;
+      padding: 2px 0;
+      margin-bottom: 1em;
+      background: #5c5c5c;
+  }
 }
 
 .btn-row {
@@ -179,11 +186,4 @@ svg svg .node polygon[fill="none"] {
 
 [role="toolbar"] {
   z-index: 999;
-}
-
-[data-is-repeated="false"] {
-    border-bottom: 2px solid #949496;
-    padding: 2px 0;
-    margin-bottom: 1em;
-    background: #5c5c5c;
 }
