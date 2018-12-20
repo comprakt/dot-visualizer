@@ -1,4 +1,4 @@
-import { observable, computed } from "mobx";
+import { observable, computed, action, autorun, intercept, runInAction } from "mobx";
 import Viz from 'viz.js';
 import { Module, render } from 'viz.js/full.render.js';
 
@@ -8,11 +8,13 @@ let viz: any = new Viz({ Module, render });
 // information, and `snapshots`, which contain a dump of the whole compiler
 // state in addition to meta data.
 const API = {
-    breakpoint_continue: "/breakpoint/continue",
-    snapshot_latest: "/snapshot/latest",
-    breakpoint_listing: "/breakpoint/all",
-    snapshot: index => `/snapshot/${index}`,
-}
+    breakpointContinue: "/breakpoint/continue",
+    snapshotLatest: "/snapshot/latest",
+    breakpointListing: "/breakpoint/all",
+    snapshot: (index: number) => `/snapshot/${index}`,
+};
+
+const SERVER = "http://localhost:8000";
 
 const MAIN_FUNCTION = "mj_main";
 
@@ -20,7 +22,12 @@ export interface Breakpoint {
     label: string;
     file: string;
     line: number;
-    column: number;
+	column: number;
+}
+
+export interface CompilationState {
+    breakpoint: Breakpoint;
+    graphs: GraphMap;
 }
 
 export interface GraphMap {
@@ -28,155 +35,186 @@ export interface GraphMap {
 }
 
 export interface Graph {
-    class_name: string;
-    method_name: string;
-    dot_file: string;
+    name: string;
+    dot_content: string;
 }
 
-export interface CompilationState {
-    breakpoint: Breakpoint;
-    dot_files: GraphMap;
+export enum ConnectionState {
+	Connecting,
+	Connected,
+	Disconnected
+}
+
+interface BreakpointWithCache {
+	breakpoint: Breakpoint;
+	cachedState: CompilationState|null;
 }
 
 export class Model {
+	compilationStateUnparsed: string | null;
+
+	@observable private breakpoints: BreakpointWithCache[] = [];
+	@computed get history(): Breakpoint[] {
+		return this.breakpoints.map(b => b.breakpoint);
+	}
+
+	@observable preferredActiveBreakpoint: number | "latest" = "latest";
+	@computed get activeBreakpointIdx(): number|null {
+		const activeBreakpointIdx =
+			this.preferredActiveBreakpoint === "latest"
+			? this.breakpoints.length - 1
+			: this.preferredActiveBreakpoint;
+		if (!(0 <= activeBreakpointIdx && activeBreakpointIdx < this.history.length)) {
+			return null;
+		}
+		return activeBreakpointIdx;
+	}
+
+	@observable preferredActiveMethod: string | null;
+	@observable activeCompilationState: CompilationState | null;
+    @observable activeMethod: string | null;
+	@observable activeSvg: string | null;
+	
+    @observable compilerConnectionState: ConnectionState;
+	
     constructor() {
-        this.compiler_online = null;
+        this.compilerConnectionState = ConnectionState.Connecting;
         setInterval(() => {
-            this.loadSnapshot();
-            this.loadBreakpointHistory();
-        }, 200);
+            this.updateBreakpointHistory();
+		}, 100);
+		
+		let lastCompileConnectionState = ConnectionState.Connecting;
+		autorun(async () => {
+			if (this.compilerConnectionState == ConnectionState.Connected
+				&& this.compilerConnectionState != lastCompileConnectionState) {
+				lastCompileConnectionState = this.compilerConnectionState;
+				runInAction("Clear old breakpoints", () => {
+					this.breakpoints = [];
+				});
+			}
+		});
+
+		autorun(async () => {
+			const idx = this.activeBreakpointIdx;
+			if (idx !== null) {
+				// update cached state
+				const bp = this.breakpoints[idx];
+				if (!bp.cachedState) {
+					const text = await this.fetchApi(API.snapshot(idx));
+					if (!text) { return; }
+					console.log(text);
+					const compilationState = JSON.parse(text) as CompilationState;
+					bp.cachedState = compilationState;
+				}		
+			}
+		});
+
+		let iteration = 0;
+
+		autorun(async () => {
+			try {
+				iteration += 1;
+				const localIteration = iteration;
+				const idx = this.activeBreakpointIdx;
+				if (idx === null) { throw new Error("No Index"); }
+
+				const bp = this.breakpoints[idx];
+				if (!bp.cachedState) { throw new Error("Not cached"); }
+
+				runInAction("Set compilation state", () => {
+					this.activeCompilationState = bp.cachedState;
+				});
+				
+				const graphs = bp.cachedState.graphs;
+				let activeMethod: string|null = null;
+				if (this.preferredActiveMethod && graphs[this.preferredActiveMethod]) {
+					activeMethod = this.preferredActiveMethod;
+				} else if (graphs[MAIN_FUNCTION]) {
+					activeMethod = MAIN_FUNCTION;
+				}
+				else {	
+					const keys = Object.keys(graphs);
+					if (keys.length > 0) {
+						activeMethod = keys[0];
+					}
+				}
+
+				runInAction("Set active method", () => this.activeMethod = activeMethod);
+				if (!activeMethod) { throw new Error("No active method"); }
+
+				const dotContent = bp.cachedState.graphs[activeMethod].dot_content;
+				const activeSvg = await viz.renderString(dotContent);
+
+				if (localIteration === iteration) {
+					// only if no other change happened during the rendering
+					runInAction("Update active svg", () => this.activeSvg = activeSvg);
+				}
+
+			} catch (e) {
+				console.log(e);
+				//runInAction("Reset active svg", () => this.activeSvg = null);
+			}
+		});
+	}
+	
+
+    async updateBreakpointHistory(): Promise<void> {
+        let response = await this.fetchApi(API.breakpointListing);
+		if (response == null) { return; }
+		const newHistory = JSON.parse(response) as Breakpoint[];
+		if (newHistory.length != this.history.length) {
+			runInAction("update history", () => {
+				this.breakpoints.push(...newHistory.slice(this.breakpoints.length).map(b => ({ breakpoint: b, cachedState: null })));
+			});
+		}
+	}
+
+    continueExecution() {
+		this.preferredActiveBreakpoint = "latest";
+        this.fetchApi(API.breakpointContinue);
     }
 
-    continue_execution() {
-        fetch(API.breakpoint_continue);
+    setPreferredActiveMethod(newActive: string) {
+        this.preferredActiveMethod = newActive;
     }
 
-    async set_active_method(new_active: string): Promise<void> {
-        if (this.compilation_state && !this.compilation_state.dot_files[new_active]) {
-            console.error("trying to view unknown graph", new_active);
-            return;
-        }
-
-        console.info("active method is now", new_active);
-        this.active_method = new_active;
-
-        if (this.compilation_state) {
-            this.svg = await viz.renderString(this.compilation_state.dot_files[this.active_method].dot_file);
-        }
+    setActiveSnapshot(idx: number | "latest") {
+        this.preferredActiveBreakpoint = idx;
     }
 
-    async ensure_active_method_exists(): Promise<void> {
-        let method = await this.find_method_to_view();
-        if (method == null || method == this.active_method) {
-            return;
-        }
-        return this.set_active_method(method)
+    selectPreviousSnapshot() {
+		const idx = this.activeBreakpointIdx;
+		if (idx && idx > 0) {
+			runInAction("Select previous snapshot", () => this.preferredActiveBreakpoint = idx - 1);
+		}
+	}
+	
+    selectNextSnapshot() {
+		const idx = this.activeBreakpointIdx;
+		if (idx !== null && idx < this.history.length - 1) {
+			if (idx < this.history.length - 2) {
+				runInAction("Select next snapshot", () => this.preferredActiveBreakpoint = idx + 1);
+			} else {
+				runInAction("Select latest snapshot", () => this.preferredActiveBreakpoint = "latest");
+			}
+		}
     }
-
-    async find_method_to_view(): Promise<string | null> {
-        if (!this.compilation_state) {
-            return null;
-        }
-
-        if (this.active_method && this.compilation_state.dot_files[this.active_method]) {
-            return this.active_method;
-        }
-
-        if (this.compilation_state.dot_files[MAIN_FUNCTION]) {
-            return MAIN_FUNCTION;
-        }
-
-        let keys = Object.keys(this.compilation_state.dot_files);
-
-        if (keys.length) {
-            return keys[0];
-        }
-
-        return null;
-    }
-
-    async set_active_snapshot(index: number | null): Promise<void> {
-        console.info("active snapshot is now", index);
-        this.active_snapshot = index;
-        this.loadSnapshot();
-    }
-
-    async previous_snapshot(): Promise<void> {
-        if (this.history != null) {
-            let idx: number = (this.active_snapshot != null) ? this.active_snapshot - 1 : this.history.length - 2;
-            this.active_snapshot = Math.max(0, idx);
-            this.loadSnapshot();
-        }
-    }
-
-    async next_snapshot(): Promise<void> {
-        if (this.history != null) {
-            let idx: number = (this.active_snapshot != null) ? this.active_snapshot + 1 : this.history.length - 1;
-            this.active_snapshot = Math.min(this.history.length - 1, idx);
-            this.loadSnapshot();
-        }
-    }
-
-    async loadSnapshot(): Promise<void> {
-        const endpoint = this.active_snapshot == null ? API.snapshot_latest : API.snapshot(this.active_snapshot);
-        const text = await this.fetch_api(endpoint);
-
-        if (text == this.compilation_state_unparsed || text == null) {
-            return;
-        }
-
-        const compilation_state: CompilationState = JSON.parse(text);
-
-        this.compilation_state_unparsed = text;
-        this.compilation_state = compilation_state;
-
-        await this.ensure_active_method_exists();
-        if (this.active_method) {
-            this.svg = await viz.renderString(this.compilation_state.dot_files[this.active_method].dot_file);
-        }
-    }
-
-    compiler_connectivity_error() {
-        this.compiler_online = false;
-    }
-
-    compiler_connectivity(data) {
-        if (!data.ok) {
-            this.compiler_connectivity_error();
-            return false;
-        }
-        this.compiler_online = true;
-        return true;
-    }
-
-    async fetch_api(endpoint): Promise<string | null> {
+	
+	async fetchApi(endpoint: string): Promise<string | null> {
         try {
-            const data = await fetch(endpoint);
-            if (!this.compiler_connectivity(data)) { return null; }
-            return await data.text();
+			const data = await fetch(SERVER + endpoint);
+			if (!data.ok) {
+				throw new Error("Could not connect");
+			} else {
+				this.compilerConnectionState = ConnectionState.Connected;
+				const text = await data.text();
+				return text;
+			}
         } catch (e) {
-            this.compiler_connectivity_error();
+			if (this.compilerConnectionState === ConnectionState.Connected) {
+				this.compilerConnectionState = ConnectionState.Disconnected;
+			}
+			return null;
         }
-
-        return null;
     }
-
-    async loadBreakpointHistory(): Promise<void> {
-        let response = await this.fetch_api(API.breakpoint_listing);
-
-        if (response == null) {
-            return;
-        }
-
-        this.history = JSON.parse(response);
-    }
-
-    @observable compilation_state_unparsed: string | null;
-    @observable compilation_state: CompilationState | null;
-    @observable history: Breakpoint[] | null;
-
-    @observable active_method: string | null;
-    @observable active_snapshot: number | null;
-    @observable compiler_online: boolean | null;
-    @observable svg: string | null;
 }

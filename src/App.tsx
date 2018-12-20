@@ -2,13 +2,29 @@ import { observer } from "mobx-react";
 import * as classNames from "classnames";
 import * as React from "react";
 import * as ReactDOM from "react-dom";
-import { Breakpoint, Model } from "./Model";
-import { ReactSVGPanZoom } from 'react-svg-pan-zoom';
+import { Breakpoint, Model, ConnectionState } from "./Model";
+import { ReactSVGPanZoom, Tool } from 'react-svg-pan-zoom';
 import { computed, observable } from "mobx";
 import Measure from 'react-measure';
 
-const Toolbar = observer(({ model }) => {
-    if (model.compiler_online == null) {
+@observer
+export class GUI extends React.Component<{ model: Model }, {}> {
+    render() {
+        const model = this.props.model;
+        const breakpoint = model.activeCompilationState ? model.activeCompilationState.breakpoint : null;
+        const svgContent = model.activeSvg || "";
+        return (
+            <div className="gui">
+                <Toolbar model={model} />
+                <Sidebar breakpoint={breakpoint} model={model} />
+                <SvgPanel svgContent={svgContent} />
+            </div>
+        );
+    }
+}
+
+const Toolbar = observer(({ model }: { model: Model }) => {
+    if (model.compilerConnectionState === ConnectionState.Connecting) {
         return (
             <div className="toolbar">
                 <div className="btn-row compiler--connecting">
@@ -16,7 +32,7 @@ const Toolbar = observer(({ model }) => {
                 </div>
             </div>
         );
-    } else if (model.compiler_online == false) {
+    } else if (model.compilerConnectionState === ConnectionState.Disconnected) {
         return (
             <div className="toolbar">
                 <div className="btn-row compiler--offline">
@@ -26,136 +42,149 @@ const Toolbar = observer(({ model }) => {
         );
     }
 
-    return <div className="toolbar compiler--continue">
-        <div className="btn-row">
-            <button className="btn btn--snapshot-prev" onClick={(e) => { model.previous_snapshot(); }}>Previous</button>
-            <button className="btn btn--snapshot-next" onClick={(e) => { model.next_snapshot(); }}>Next</button>
-            <button className="btn btn--continue" onClick={(e) => { model.continue_execution(); }}>Continue</button>
+    return (
+        <div className="toolbar compiler--continue">
+            <div className="btn-row">
+                <button className="btn btn--snapshot-prev" onClick={(e) => { model.selectPreviousSnapshot(); }}>Previous</button>
+                <button className="btn btn--snapshot-next" onClick={(e) => { model.selectNextSnapshot(); }}>Next</button>
+                <button className="btn btn--continue" onClick={(e) => { model.continueExecution(); }}>Continue</button>
+            </div>
         </div>
-    </div>;
+    );
 });
 
-const Sidebar = observer((props) => {
-    return <div className="sidebar">
-        <BreakpointInfo breakpoint={props.breakpoint} />
-        <GraphSelector model={props.model} />
-        <BreakpointHistory model={props.model} />
-    </div>;
+const Sidebar = observer((props: { breakpoint: Breakpoint|null, model: Model }) => {
+    return (
+        <div className="sidebar">
+            <BreakpointInfo breakpoint={props.breakpoint} />
+            <GraphSelector model={props.model} />
+            <BreakpointHistory model={props.model} />
+        </div>
+    );
 });
 
-const GraphSelector = observer((props) => {
+const GraphSelector = observer((props: { model: Model }) => {
     const model = props.model;
-    const method = model.active_method && model.compilation_state ? model.compilation_state.dot_files[model.active_method] : null;
+    const activeCompilationState = model.activeCompilationState;
+    const graph = model.activeMethod && activeCompilationState ? activeCompilationState.graphs[model.activeMethod] : null;
 
-
-    if (!method) {
+    if (!graph || !activeCompilationState) {
         return <div className="graph-selection" />;
     }
 
-    const graphs = Object.keys(model.compilation_state.dot_files);
-    graphs.sort();
+    const graphKeys = Object.keys(activeCompilationState.graphs);
+    graphKeys.sort();
 
-    const links = graphs.map(function(internal_name, index) {
-        let graph = model.compilation_state.dot_files[internal_name];
-        let is_active = model.active_method == internal_name;
-        return <li data-is-current={is_active}>
-            <a href="#" onClick={(e) => { e.preventDefault(); model.set_active_method(internal_name) }}>
-                {graph.class_name}.{graph.method_name}</a>
-        </li>;
+    const links = graphKeys.map(key => {
+        let graph = activeCompilationState.graphs[key];
+        let is_active = model.activeMethod == key;
+        return (
+            <li key={key} data-is-current={is_active}>
+                <a href="#" onClick={(e) => { e.preventDefault(); model.setPreferredActiveMethod(key) }}>
+                    {graph.name}
+                </a>
+            </li>
+        );
     });
 
-    return <div className="graph-selection">
-        <h1>Methods</h1>
-        <ul>{links}</ul>
-    </div>;
+    return (
+        <div className="graph-selection">
+            <h1>Graphs</h1>
+            <ul>{links}</ul>
+        </div>
+    );
 });
 
-const BreakpointInfo = observer((props) => {
+const BreakpointInfo = observer((props: { breakpoint: Breakpoint|null }) => {
     if (!props.breakpoint) {
         return <div className="breakpoint" />;
     } else {
-        let file = props.breakpoint.file;
-        let line = props.breakpoint.line;
-        let column = props.breakpoint.column;
-        let label = props.breakpoint.label;
-
-        return <div className="breakpoint">
-            <h1>Breakpoint</h1>
-            <table>
-                <tr><th>Label</th><td>{label}</td></tr>
-                <tr><th>File</th><td>{file}</td></tr>
-                <tr><th>Line</th><td>{line}</td></tr>
-                <tr><th>Column</th><td>{column}</td></tr>
-            </table>
-        </div>;
+        const bp = props.breakpoint;
+        return (
+            <div className="breakpoint">
+                <h1>Breakpoint</h1>
+                <table>
+                    <tr><th>Label</th><td>{bp.label}</td></tr>
+                    <tr><th>File</th><td>{bp.file}</td></tr>
+                    <tr><th>Line</th><td>{bp.line}</td></tr>
+                    <tr><th>Column</th><td>{bp.column}</td></tr>
+                </table>
+            </div>
+        );
     }
 });
 
-const BreakpointHistory = observer((props) => {
-    if (!props.model.history) {
-        return <div className="breakpoint-history" />;
+const BreakpointHistory = observer((props: { model: Model }) => {
+    const history = props.model.history;
+    if (!history) {
+        return (
+            <div className="breakpoint-history" />
+        );
     }
 
-    let last_unrepeated: Breakpoint | null = null;
-
-    const breakpoints = props.model.history.map(function(b: Breakpoint, index) {
-        let is_repeated = true;
-        if (!last_unrepeated || b.line != last_unrepeated.line || b.column != last_unrepeated.column || b.file != last_unrepeated.file) {
-            is_repeated = false;
-            last_unrepeated = b;
+    const activeBreakpointIdx = props.model.activeBreakpointIdx;
+    let lastUnrepeated: Breakpoint | null = null;
+    const breakpoints = history.map((b: Breakpoint, idx) => {
+        let isRepeated = true;
+        if (!lastUnrepeated || b.line != lastUnrepeated.line || b.column != lastUnrepeated.column || b.file != lastUnrepeated.file) {
+            isRepeated = false;
+            lastUnrepeated = b;
         }
-        let is_active = props.model.active_snapshot == index || (props.model.active_snapshot == null && index + 1 == props.model.history.length);
-        return <li data-is-current={is_active} data-is-repeated={is_repeated}>
-            <a href="#" onClick={(e) => {
-                e.preventDefault();
-                if (props.model.compiler_online) {
-                    props.model.set_active_snapshot(index);
-                }
-            }}>
-                <span className="label">{b.label}</span> <span className="location">{b.file}@{b.line}</span></a>
-        </li>;
+        return (
+            <li data-is-current={activeBreakpointIdx == idx} data-is-repeated={isRepeated}>
+                <a href="#" onClick={(e) => {
+                    e.preventDefault();
+                    props.model.setActiveSnapshot(idx);
+                }}>
+                    <span className="label">{b.label}</span> <span className="location">
+                        {b.file}@{b.line}
+                    </span>
+                </a>
+            </li>
+        );
     });
 
     breakpoints.reverse();  // reverse, newest breakpoint on top/index zero
 
-    return <div className="breakpoint-history" data-is-offline={!props.model.compiler_online}>
-        <h1>History</h1>
-        <ul>{breakpoints}</ul>
-    </div>;
+    return (
+        <div className="breakpoint-history" data-is-offline={props.model.compilerConnectionState !== ConnectionState.Connected}>
+            <h1>History</h1>
+            <ul>{breakpoints}</ul>
+        </div>
+    );
 });
 
-@observer
-export class GUI extends React.Component<{ model: Model }, {}> {
-    @observable
-    private divRef: HTMLDivElement | null;
+class SvgPanel extends React.Component<{ svgContent: string }, { tool: Tool }> {
+    constructor(props) {
+        super(props);
+        this.state = { tool: "pan" };
+    }
 
-    setRef = (ref: HTMLDivElement): void => {
-        this.divRef = ref;
+    private readonly setTool = (tool: Tool) => {
+        this.setState({ tool });
     };
 
     render() {
-        const model = this.props.model;
-        const breakpoint = model.compilation_state ? model.compilation_state.breakpoint : null;
-        const svgContent = model.svg || "";
+        const { svgContent } = this.props;
         return (
-            <div className="gui">
-                <Toolbar model={model} />
-                <Sidebar breakpoint={breakpoint} model={model} />
-                <Measure bounds>
-                    {({ measureRef, contentRect }) => {
-                        return (
-                            <div ref={measureRef} className="content">
-                                <ReactSVGPanZoom
-                                    width={contentRect.bounds!.width} height={contentRect.bounds!.height}>
-                                    <svg>
-                                        <g dangerouslySetInnerHTML={{ __html: svgContent }} />
-                                    </svg>
-                                </ReactSVGPanZoom>
-                            </div>
-                        )
-                    }}
-                </Measure>
-            </div>
+            <Measure bounds>
+                {
+                    ({ measureRef, contentRect }) => (
+                        <div ref={measureRef} className="content">
+                            <ReactSVGPanZoom
+                                width={contentRect.bounds!.width}
+                                height={contentRect.bounds!.height}
+                                tool={this.state.tool}
+                                onChangeTool={this.setTool}
+                            >
+                                <svg>
+                                    <g dangerouslySetInnerHTML={{ __html: svgContent }} />
+                                </svg>
+                            </ReactSVGPanZoom>
+                        </div>
+                    )
+                }
+            </Measure>
         );
     }
 }
