@@ -1,31 +1,31 @@
 body {
-	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-	height: 100vh;
-	position: relative;
-	margin: 0px;
-	padding: 0px;
-	border: 0px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  height: 100vh;
+  position: relative;
+  margin: 0px;
+  padding: 0px;
+  border: 0px;
 }
 
 html, .root, .gui {
-	height: 100vh;
-	position: relative;
-	margin: 0px;
-	padding: 0px;
-	border: 0px;
+  height: 100vh;
+  position: relative;
+  margin: 0px;
+  padding: 0px;
+  border: 0px;
 }
 
 .gui {
-	display: flex;
-	flex-direction: column;
+  display: flex;
+  flex-direction: column;
 }
 
 .header {
 }
 
 .content {
-	flex: 1;
-	height: 100%;
+  flex: 1;
+  height: 100%;
 }
 
 .toolbar {

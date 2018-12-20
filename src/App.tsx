@@ -144,7 +144,7 @@ const BreakpointHistory = observer((props: { model: Model }) => {
         );
     });
 
-    breakpoints.reverse();  // reverse, newest breakpoint on top/index zero
+    breakpoints.reverse(); // reverse, newest breakpoint on top/index zero
 
     return (
         <div className="breakpoint-history" data-is-offline={props.model.compilerConnectionState !== ConnectionState.Connected}>
