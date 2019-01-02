@@ -85,9 +85,10 @@ export class Model {
         
         let lastCompileConnectionState = ConnectionState.Connecting;
         autorun(async () => {
-            if (this.compilerConnectionState == ConnectionState.Connected
-                && this.compilerConnectionState != lastCompileConnectionState) {
-                lastCompileConnectionState = this.compilerConnectionState;
+            if (this.compilerConnectionState == lastCompileConnectionState) { return; }
+            lastCompileConnectionState = this.compilerConnectionState;
+
+            if (this.compilerConnectionState == ConnectionState.Connected) {
                 runInAction("Clear old breakpoints", () => {
                     this.breakpoints = [];
                 });
