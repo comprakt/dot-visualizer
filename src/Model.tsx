@@ -2,7 +2,7 @@ import { observable, computed, action, autorun, intercept, runInAction } from "m
 import Viz from 'viz.js';
 import { Module, render } from 'viz.js/full.render.js';
 
-let viz: any = new Viz({ Module, render });
+let viz: any = new Viz({Module: () => Module({TOTAL_MEMORY: 1<<25}), render});
 
 // The API differentiates between `breakpoints`, which only contain meta
 // information, and `snapshots`, which contain a dump of the whole compiler
