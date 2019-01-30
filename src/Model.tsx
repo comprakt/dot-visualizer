@@ -173,6 +173,20 @@ export class Model {
         this.fetchApi(API.breakpointContinue);
     }
 
+    downloadCurrentAsSvg() {
+        if (this.activeSvg == null) {
+            return;
+        }
+        var svgBlob = new Blob([this.activeSvg], {type:"image/svg+xml;charset=utf-8"});
+        var svgUrl = URL.createObjectURL(svgBlob);
+        var downloadLink = document.createElement("a");
+        downloadLink.href = svgUrl;
+        downloadLink.download = name;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+    }
+
     setPreferredActiveMethod(newActive: string) {
         this.preferredActiveMethod = newActive;
     }

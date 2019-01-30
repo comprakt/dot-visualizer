@@ -91,6 +91,12 @@ const GraphSelector = observer((props: { model: Model }) => {
         <div className="graph-selection">
             <h1>Graphs</h1>
             <ul>{links}</ul>
+            <div className="downloads">
+                <p>Download as</p>
+                <div className="btn-row">
+                    <button className="btn btn--svg" onClick={(e) => { props.model.downloadCurrentAsSvg(); }}>SVG</button>
+                </div>
+            </div>
         </div>
     );
 });
