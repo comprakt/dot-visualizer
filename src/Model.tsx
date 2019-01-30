@@ -180,8 +180,9 @@ export class Model {
         var svgBlob = new Blob([this.activeSvg], {type:"image/svg+xml;charset=utf-8"});
         var svgUrl = URL.createObjectURL(svgBlob);
         var downloadLink = document.createElement("a");
+        downloadLink.style.display = "none";
         downloadLink.href = svgUrl;
-        downloadLink.download = name;
+        downloadLink.download = (this.activeMethod || "unknown") + ".svg";
         document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);
